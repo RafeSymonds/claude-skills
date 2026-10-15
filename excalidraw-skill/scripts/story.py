@@ -52,6 +52,16 @@ from pathlib import Path
 
 import yaml
 
+
+class FrontDumper(yaml.SafeDumper):
+    """Writes multi-line strings as `|` blocks. The default quoted form puts
+    blank lines inside the frontmatter, and tools that read a deck's
+    frontmatter line by line (bin/check-cues here) stop recognizing it."""
+
+
+FrontDumper.add_representer(str, lambda d, v: d.represent_scalar(
+    'tag:yaml.org,2002:str', v, style='|' if '\n' in v else None))
+
 ANIMATE = Path(__file__).resolve().parent / 'animate.mjs'
 RATE = 24000
 MAX_CHARS = 500             # lecture-tts's chunk size, so the voice matches
@@ -206,7 +216,9 @@ CONTENT = (120, 220, 1360, 620)  # x, y, width, height of the area under the tit
 
 def title_style(story: Story):
     t = story.opt('title', {}) or {}
-    return t.get('size', 64), t.get('color', '#1B2547')
+    # font: an Excalidraw fontFamily number; 5 is hand-drawn Excalifont,
+    # 6 is Nunito, the plainer face decks use for words on the page.
+    return t.get('size', 64), t.get('color', '#1B2547'), t.get('font', 5)
 
 
 def page(story: Story, elements, title, own):
@@ -221,11 +233,11 @@ def page(story: Story, elements, title, own):
     cam = {'x': f['x'] - left / s, 'y': f['y'] - top / s, 'width': PAGE_W / s, 'height': PAGE_H / s}
     if not title:
         return cam, None
-    size, color = title_style(story)
+    size, color, font = title_style(story)
     # Page units divided by the scale, so the title lands the same on screen.
     return cam, {'id': 'story-title', 'type': 'text', 'x': cam['x'] + TITLE_X / s,
                  'y': cam['y'] + TITLE_Y / s, 'text': title, 'fontSize': size / s,
-                 'fontFamily': 5, 'strokeColor': color, 'textAlign': 'left'}
+                 'fontFamily': font, 'strokeColor': color, 'textAlign': 'left'}
 
 
 def bounds(elements):
@@ -271,9 +283,10 @@ def storyboard(story: Story, runs, audio=None, names=False):
         # lecture this is. `intro: draw` draws it in from white instead.
         if i == 0 and story.opt('intro', 'cut') != 'draw':
             k['duration'] = 0
-        silent = (story.opt('silent', {}) or {}).get(b['scene'])
-        if silent:
-            k['silent'] = silent
+        # Titles stay on screen the whole time, so the words need not read
+        # them out: a card's `title` and the title drawn above a diagram.
+        silent = ['title', 'story-title'] + ((story.opt('silent', {}) or {}).get(b['scene']) or [])
+        k['silent'] = silent
         if names:
             k['name'] = f'{b["scene"]}-{b["step"] or 0}'
         if audio:
@@ -391,7 +404,10 @@ def lint(story: Story, lexicon: dict):
         for pattern, problem in SPEECH_CHECKS:
             for m in pattern.finditer(b['text']):
                 hit = m.group(0)
-                if any(hit.startswith(t) for t in lexicon):
+                # A lexicon entry that covers this stretch of text already
+                # fixes how it is said ("qwen3.5:4b" covers "qwen3.5").
+                if any(o.start() < m.end() and o.end() > m.start()
+                       for t in lexicon for o in re.finditer(re.escape(t), b['text'], re.I)):
                     continue
                 found.append(f'{b["scene"]} {b["step"]}: "{hit}": {problem}')
     for f in found:
@@ -513,7 +529,7 @@ def cmd_slides(story: Story, args):
             '<v-switch>\n' + '\n'.join(f'  <template #{i}>{img}</template>' for i, img in enumerate(imgs))
             + '\n</v-switch>')
         notes = '\n\nClick. '.join(b['text'] for b in run).strip()
-        out.append('---\n' + yaml.safe_dump(front, sort_keys=False, allow_unicode=True).strip()
+        out.append('---\n' + yaml.dump(front, Dumper=FrontDumper, sort_keys=False, allow_unicode=True).strip()
                    + f'\n---\n\n# {title}\n\n{body}\n\n' + (style if r_i == 0 else '')
                    + (f'\n<!--\n{notes}\n-->\n' if notes else ''))
     deck.parent.mkdir(parents=True, exist_ok=True)

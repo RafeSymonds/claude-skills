@@ -1,6 +1,6 @@
 ---
 name: excalidraw-skill
-description: Excalidraw canvas toolkit for creating, editing, and refining diagrams on a live canvas. Use when an agent needs to (1) draw or lay out diagrams, (2) iteratively refine them by describing the scene and screenshotting its own work, (3) export/import .excalidraw files or PNG/SVG images, (4) save/restore canvas snapshots, (5) convert Mermaid to Excalidraw, (6) perform element-level CRUD, alignment, distribution, grouping, duplication, and locking, or (7) animate diagrams into MP4/GIF/WebM videos (excalidraw-animate). Interfaces: MCP tools (preferred when available), the bundled CLI (npx -y mcp-excalidraw-server <command>), or a REST API, all driving the same canvas.
+description: Excalidraw canvas toolkit for creating, editing, and refining diagrams on a live canvas. Use when an agent needs to (1) draw or lay out diagrams, (2) iteratively refine them by describing the scene and screenshotting its own work, (3) export/import .excalidraw files or PNG/SVG images, (4) save/restore canvas snapshots, (5) convert Mermaid to Excalidraw, (6) perform element-level CRUD, alignment, distribution, grouping, duplication, and locking, (7) animate diagrams into MP4/GIF/WebM videos (excalidraw-animate), or (8) build a slide deck or a narrated video (Kokoro voice) from one story file of Excalidraw scenes (excalidraw-story), in a house style for slides and narration. Interfaces: MCP tools (preferred when available), the bundled CLI (npx -y mcp-excalidraw-server <command>), or a REST API, all driving the same canvas.
 ---
 
 # Excalidraw Skill
@@ -286,6 +286,8 @@ Flags: `--out` (`.mp4`, `.webm`, `.gif`, or a directory for PNG frames), `--dura
 
 Storyboard keyframe fields: `scene` (file, `snapshot:<name>`, `canvas`, or an inline element array), `step` (one build step of a scene file, from its `steps.json`), `ids` (only these elements), `add` (extra elements over the scene, such as a title), `clear` (a new scene: the old one fades out, the camera cuts, then this one draws in even where ids repeat), `audio`, `audioDelay`, `narration`, `textX`, `duration`, `hold`, `stagger`, `enterDelay`, `easing`, `enter` (`auto|draw|pop|fade|rise|type|none`), `styles` (`{"<id>": "type"}`, a bound label's id is `<containerId>::label`), `order`, and `camera` (`{"fit": ["id", ...], "padding": 40}` or `{x, y, width, height}`). The full reference is at the bottom of the script.
 
+Nunito (`fontFamily: 6`, Excalidraw's plain "Normal" font) renders as itself: the renderer alone would substitute Liberation Sans, so `excalidraw-animate` supplies the TTF in `assets/fonts/` (SIL OFL). Use it for words that should read as type rather than handwriting, such as slide titles, list items and tables.
+
 For video, text has to read in the widest shot at 1080p. Keep the scene close to 16:9 and use `fontSize` 28 or more for free text. Shape labels render at 20 on the canvas whatever the shape's `fontSize` (see Element Format). Keyframe files passed to `excalidraw-animate` are the exception, because the script carries a shape's `fontSize` into its label.
 
 Check the result before handing it over. `--sheet sheet.png` writes contact sheets of every keyframe's finished frame, 20 to a page (`sheet-1.png`, `sheet-2.png`, ... when there are more), so you can check every step without watching the video. Any ffmpeg tile command works on a `--out frames` directory too, but the sheet picks the right frames for you.
@@ -311,6 +313,8 @@ Voice each beat as its own audio file (any TTS), then give every keyframe its cl
 
 ### Pipeline: excalidraw-story
 
+The house style for decks and videos built this way (page, fonts, colors, slide kinds, writing rules, Kokoro voice) is `references/slides-and-video.md`. Read it before drawing a card or writing narration.
+
 For a narrated video or a slide deck, write one story file and let `excalidraw-story` (wrapper for `scripts/story.py`, a uv script) build the storyboard, voices and checks. No per-project build script.
 
 ```markdown
@@ -329,7 +333,7 @@ A task split into parts. The main conversation holds your request.
 Each part goes to a conversation of its own...
 ```
 
-Each `## <scene> [<step>] [| <title>]` is a beat. A `|` title is drawn above the scene unless the scene has its own `title` element. A new scene clears the old one. Other front matter: `work` (cache dir), `voice`, `speed`, `audio_delay` (0.3), `gap` (0.5), `scene_gap` (1.0), `end_hold` (4.0), `text_x` (`auto` reads whole-number x on centered text as the middle), `title` ({size, color, gap}), `strict` (true), `intro` (`cut`, the default, opens on the first scene already drawn so the first frame shows what is playing; `draw` draws it in from white).
+Each `## <scene> [<step>] [| <title>]` is a beat. A `|` title is drawn above the scene unless the scene has its own `title` element. A new scene clears the old one. Other front matter: `work` (cache dir), `voice`, `speed`, `audio_delay` (0.3), `gap` (0.5), `scene_gap` (1.0), `end_hold` (4.0), `text_x` (`auto` reads whole-number x on centered text as the middle), `title` ({size, color, gap}), `strict` (true), `title` also takes `font` (an Excalidraw `fontFamily`; 6 is Nunito for plain page text, default 5, hand-drawn). Titles (a card's `title` element and the title drawn above a scene) are always `silent`: the words never need to read them. `intro` (`cut`, the default, opens on the first scene already drawn so the first frame shows what is playing; `draw` draws it in from white).
 
 | Command | Does |
 |---------|------|

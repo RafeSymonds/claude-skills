@@ -29,6 +29,7 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { execFileSync, spawnSync } from 'child_process';
+import { fileURLToPath } from 'url';
 
 // ---------------------------------------------------------------------------
 // Locate mcp-excalidraw-server's renderer. Its render modules are internal
@@ -80,6 +81,8 @@ const { prepareElement } = await import(path.join(SERVER_DIR, 'dist', 'core', 'n
 const { getCommonBounds } = await loadExcalidrawNode();
 
 const CANVAS_URL = process.env.EXPRESS_SERVER_URL || 'http://127.0.0.1:3000';
+// Nunito, from Excalidraw's own web font (SIL OFL 1.1, assets/fonts/OFL.txt).
+const NUNITO_TTF = fileURLToPath(new URL('../assets/fonts/Nunito-Regular.ttf', import.meta.url));
 
 // ---------------------------------------------------------------------------
 // Easing
@@ -408,8 +411,15 @@ const NUMBER_WORDS = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'sev
 const SMALL_WORDS = new Set(['a', 'an', 'the', 'and', 'or', 'of', 'to', 'in', 'on', 'at', 'by', 'for', 'with', 'as',
   'is', 'it', 'its', 'be', 'your', 'you', 'this', 'that']);
 
+// A slide abbreviates dates ("Fri Sep 11") that the voice says in full.
+const DATE_WORDS = { monday: 'mon', tuesday: 'tue', tues: 'tue', wednesday: 'wed', thursday: 'thu', thur: 'thu',
+  thurs: 'thu', friday: 'fri', saturday: 'sat', sunday: 'sun', january: 'jan', february: 'feb', march: 'mar',
+  april: 'apr', june: 'jun', july: 'jul', august: 'aug', september: 'sep', sept: 'sep', october: 'oct',
+  november: 'nov', december: 'dec' };
+
 function stem(word) {
   if (NUMBER_WORDS.includes(word)) return String(NUMBER_WORDS.indexOf(word));
+  if (DATE_WORDS[word]) return DATE_WORDS[word];
   let w = word.replace(/'s$|'$/, '');
   if (w.length > 4) {
     const cut = w.replace(/(ing|ed|es|s)$/, '');
@@ -844,10 +854,16 @@ async function renderFrame(elements, camera, options, boilTick) {
   }
   let svg = `${head}${bodies.join('')}</svg>`;
   const entries = fonts.collectFontEntriesFromSvg(svg);
+  // The renderer has no Nunito (Excalidraw's "Normal" font) and draws it as
+  // Liberation Sans. This skill carries a Nunito TTF, so keep the family
+  // name through the renderer's rewrite and hand it the file.
+  const nunito = /font-family=["']Nunito/.test(svg) && fs.existsSync(NUNITO_TTF);
+  if (nunito) svg = svg.replace(/(font-family=["'])Nunito(?=[,"'])/g, '$1Nunito-Bundled');
   svg = fonts.rewriteFontFamilies(svg, entries);
+  if (nunito) svg = svg.replace(/(font-family=["'])Nunito-Bundled/g, '$1Nunito');
   return svgToPng(svg, {
     scale: options.width / camera.width,
-    fontFiles: fonts.fontFilesFor(entries),
+    fontFiles: nunito ? [...fonts.fontFilesFor(entries), NUNITO_TTF] : fonts.fontFilesFor(entries),
     loadSystemFonts: fonts.needsSystemFonts(live),
     defaultFontFamily: 'Excalifont',
   }).data;
