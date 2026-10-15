@@ -421,12 +421,14 @@ function stem(word) {
   if (NUMBER_WORDS.includes(word)) return String(NUMBER_WORDS.indexOf(word));
   if (DATE_WORDS[word]) return DATE_WORDS[word];
   let w = word.replace(/'s$|'$/, '');
+  if (w.length > 4 && /ies$/.test(w)) return w.slice(0, -3) + 'y';  // "stories" -> "story"
   if (w.length > 4) {
     const cut = w.replace(/(ing|ed|es|s)$/, '');
     // "dropped" -> "dropp" -> "drop"
     w = cut !== w && /([^aeiou])\1$/.test(cut) ? cut.slice(0, -1) : cut;
   }
-  return w;
+  // A final e goes too, so "assemble" meets "assembles" and "file" meets "files".
+  return w.length > 3 ? w.replace(/e$/, '') : w;
 }
 
 function spokenWords(text) {

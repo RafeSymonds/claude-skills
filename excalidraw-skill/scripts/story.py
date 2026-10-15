@@ -84,6 +84,9 @@ SPEECH_CHECKS = [
     (re.compile(r'\b\d+\s?M\b'), '"1M" is read "one em": spell out million'),
     (re.compile(r'https?://\S+'), 'bare URL: read letter by letter'),
     (re.compile(r'\b[A-Za-z]+\d+\.\d+\w*'), 'a version like K2.5 drops its point: add a lexicon entry'),
+    # Kokoro reads 1638 as a year ("sixteen thirty-eight"); 1,638 reads as a count.
+    (re.compile(r'(?<![\d,.])(?!19\d\d\b|20\d\d\b)[1-9]\d{3}(?![\d,.])'),
+     'a four-digit count is read like a year: write it with a comma (1,638)'),
 ]
 
 
