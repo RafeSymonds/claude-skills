@@ -1,0 +1,4 @@
+#!/bin/sh
+# One story file in, a narrated video or a slide deck out. See scripts/story.py.
+# uv builds the script's environment (Kokoro, spaCy model) on first run.
+exec uv run --quiet --script "$(dirname "$(readlink -f "$0")")/../scripts/story.py" "$@"
