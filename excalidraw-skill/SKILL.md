@@ -1,6 +1,6 @@
 ---
 name: excalidraw-skill
-description: Excalidraw canvas toolkit for creating, editing, and refining diagrams on a live canvas. Use when an agent needs to (1) draw or lay out diagrams, (2) iteratively refine them by describing the scene and screenshotting its own work, (3) export/import .excalidraw files or PNG/SVG images, (4) save/restore canvas snapshots, (5) convert Mermaid to Excalidraw, or (6) perform element-level CRUD, alignment, distribution, grouping, duplication, and locking. Primary interface is the bundled CLI (npx -y mcp-excalidraw-server <command>) which auto-starts the canvas server; MCP tools and a REST API are equivalent alternatives.
+description: Excalidraw canvas toolkit for creating, editing, and refining diagrams on a live canvas. Use when an agent needs to (1) draw or lay out diagrams, (2) iteratively refine them by describing the scene and screenshotting its own work, (3) export/import .excalidraw files or PNG/SVG images, (4) save/restore canvas snapshots, (5) convert Mermaid to Excalidraw, (6) perform element-level CRUD, alignment, distribution, grouping, duplication, and locking, or (7) animate diagrams into MP4/GIF/WebM from keyframe scenes or snapshots. Primary interface is the bundled CLI (npx -y mcp-excalidraw-server <command>) which auto-starts the canvas server; MCP tools and a REST API are equivalent alternatives.
 ---
 
 # Excalidraw Skill
@@ -17,13 +17,15 @@ Three interfaces drive the same live canvas. Pick the first one that applies:
    No setup needed — any canvas-touching command **auto-starts the canvas server** on `http://127.0.0.1:3081` (first `npx` run downloads the package). If the CLI is installed globally (`npm i -g mcp-excalidraw-server`), the shorter alias `excalidraw-canvas <command>` works too.
 3. **REST API** (last resort, e.g. from application code): HTTP endpoints on `http://127.0.0.1:3081` — see `references/cheatsheet.md` for payloads. The server must already be running.
 
-The canvas URL comes from `EXPRESS_SERVER_URL` (set to `http://127.0.0.1:3081` in `~/.claude/settings.json` `env` and the MCP server env in `~/.claude.json`, package default 3000). Remind the user to open that URL in a browser — screenshots, image export, mermaid conversion, and viewport control need an open tab (CLI exits with code 4 when it's missing).
+The canvas URL comes from `EXPRESS_SERVER_URL` (set to `http://127.0.0.1:3081` in `~/.claude/settings.json` `env` and the MCP server env in `~/.claude.json`, package default 3000). Screenshots and image exports render headless inside the canvas server, so you never need a browser tab to check your own work. Only mermaid conversion and viewport control need an open tab (CLI exits with code 4 when it's missing). Still tell the user the URL — opening it lets them watch you draw.
 
-On this machine the canvas server on 3081 is the always-on Docker container `mcp-excalidraw-canvas` (image `ghcr.io/yctimlin/mcp_excalidraw-canvas`, host 3081 mapped to container 3000). Port 3080 is a separate standalone Excalidraw app (Docker container `excalidraw`, image `excalidraw/excalidraw`) for manual drawing. It is not the agent canvas and the tools above cannot reach it. Keep Excalidraw off 3000 and 8080, which the user reserves for other work.
+On this machine the canvas server on 3081 is the always-on Docker container `mcp-excalidraw-canvas` (image `ghcr.io/yctimlin/mcp_excalidraw-canvas`, host 3081 mapped to container 3000, `--restart unless-stopped`). The image must be at least as new as the npm package, or headless rendering is missing and screenshots silently fall back to the browser renderer. Upgrading recreates the container and wipes its in-memory scene and snapshots, so back them up first. Port 3080 is a separate standalone Excalidraw app (Docker container `excalidraw`, image `excalidraw/excalidraw`) for manual drawing. It is not the agent canvas and the tools above cannot reach it. Keep Excalidraw off 3000 and 8080, which the user reserves for other work.
+
+**Free text alignment:** `x` is always the left edge of a text element's box, even with `textAlign: "center"`. The open browser tab can render center-aligned free text as if `x` were its center, so the browser view and the headless screenshot (and the exported file) disagree. To center free text over a point, set `x = centerX - width/2`.
 
 ### CLI Quick Reference
 
-Results are JSON on stdout — except `describe` (plain text) and raw-content output when `--out` is omitted (`export` scene JSON, `screenshot --format svg`). Diagnostics on stderr. Exit codes: 0 ok, 1 error, 2 usage, 3 canvas unreachable, 4 browser tab required.
+Results are JSON on stdout — except `describe` (plain text) and raw-content output when `--out` is omitted (`export` scene JSON, `screenshot --format svg`). Diagnostics on stderr. Exit codes: 0 ok, 1 error, 2 usage, 3 canvas unreachable, 4 browser tab required (only `mermaid` and `screenshot --renderer browser`).
 
 | Task | Command |
 |------|---------|
@@ -203,7 +205,7 @@ The intermediate waypoint `[50, -40]` lifts the arrow upward. `roundness: {type:
 Pairing `describe` with `screenshot` is what makes this skill powerful.
 
 - **`describe`** (`describe_scene` in MCP) → structured text: element IDs, types, positions, labels, connections. Use it to know *what's on the canvas* before making programmatic updates (find IDs, understand bounding boxes).
-- **`screenshot`** (`get_canvas_screenshot` in MCP) → PNG of the actual rendered canvas. Use it for *visual quality verification* — it shows exactly what the user sees, including truncation, overlap, and arrow routing. The CLI prints the saved file path as JSON; read/view that file.
+- **`screenshot`** (`get_canvas_screenshot` in MCP) → PNG rendered headless from the canonical canvas state with Excalidraw's own renderer (no browser tab needed, a few ms). Use it for *visual quality verification* — it shows exactly what the diagram looks like, including truncation, overlap, and arrow routing. The CLI prints the saved file path as JSON; read/view that file. `--scale 2` for legibility on dense diagrams, `--ids a,b` or `--frame <id>` to zoom in on a part, `--dark` for dark mode.
 
 **Feedback loop:**
 ```
@@ -235,7 +237,8 @@ Requires an open browser tab (conversion runs in the frontend; exit code 4 tells
 
 - Export scene: `export --out diagram.excalidraw` (no `--out` → JSON to stdout)
 - Import scene: `import diagram.excalidraw` (append) or `import diagram.excalidraw --replace`
-- Image: `screenshot --out diagram.png` / `screenshot --format svg --out diagram.svg` (browser tab required)
+- Image: `screenshot --out diagram.png` / `screenshot --format svg --out diagram.svg` (headless; SVGs embed their fonts)
+- Offline: `render diagram.excalidraw --out diagram.png` renders a saved file without the canvas server (CI-friendly, same flags as `screenshot`)
 - Share link: `share` — encrypts the scene and returns a shareable excalidraw.com URL
 
 This is how diagrams live in a repo: commit the `.excalidraw` file, and re-`import` + edit + `export` it when the architecture changes.
@@ -257,6 +260,23 @@ Round-trips are safe: text-element block references follow the plugin's own id r
 2. Make changes, evaluate with `describe` / `screenshot`.
 3. `snapshot restore <name>` to roll back if needed. `snapshot list` shows what's saved.
 
+## Workflow: Animation (MP4 / GIF / WebM)
+
+`scripts/animate.mjs` turns keyframe scenes into video with the same headless renderer as `screenshot`. Elements are matched across keyframes by `id`. Shared elements morph (position, size, color, points, opacity, text swaps). New elements enter one after another: arrows and lines grow along their path, rectangles, ellipses and diamonds are traced and then filled, and text fades in. Removed elements fade out. Needs `ffmpeg` (installed) and mcp-excalidraw-server >= 2.1 in the npx cache or installed globally.
+
+1. Draw keyframe 1 on the canvas and `snapshot save k1`.
+2. Edit the canvas into keyframe 2 and `snapshot save k2`, and so on. Keep the same `id` on any element that should move or change rather than reappear. Add, move, recolor, or delete elements between snapshots.
+3. Render:
+   ```bash
+   node ~/.claude/skills/excalidraw-skill/scripts/animate.mjs snapshot:k1 snapshot:k2 snapshot:k3 --intro --out out.mp4
+   ```
+   Keyframes can also be `.excalidraw` / `.excalidraw.md` files (agent shorthand such as `text` on shapes and `startElementId` is accepted) or `canvas` for the live scene. `--intro` draws keyframe 1 in from empty. Other flags: `--duration 0.8` (transition seconds), `--hold 1.2`, `--fps 30`, `--width 1920 --height 1080`, `--boil 8` (hand-drawn wobble, re-seeds strokes 8 times per second), `--dark`. An output path with no extension writes a PNG frame sequence.
+4. Check the result before handing it over. Render to a frame directory and tile frames into one image: `ffmpeg -framerate 30 -i frames/%05d.png -vf "select='not(mod(n\,12))',scale=640:-1,tile=3x6" -frames:v 1 sheet.png`, then view `sheet.png`.
+
+For per-keyframe control (camera zoom/pan, enter order, per-element styles, easing), pass a storyboard JSON instead: `node animate.mjs storyboard.json`. The reference is at the bottom of the script. Key fields per keyframe are `scene`, `duration`, `hold`, `stagger`, `enter` (`auto|draw|pop|fade|rise|type|none`), `styles` (`{"<id>": "type"}`, a bound label's id is `<containerId>::label`), `order`, and `camera` (`{"fit": ["id", ...], "padding": 40}` or an explicit `{x, y, width, height}`). Camera changes interpolate with the transition.
+
+The script imports the package's internal render modules (`dist/core/render`). If a package upgrade breaks it, check those module exports first.
+
 ## Workflow: Duplication
 
 `arrange duplicate --ids a,b --offset 40,40` (default offset 20,20). Useful for repeated patterns or copying layouts.
@@ -264,7 +284,7 @@ Round-trips are safe: text-element block references follow the plugin's own id r
 ## Error Recovery
 
 - **Exit code 3 (canvas unreachable)?** Auto-start is disabled (`EXCALIDRAW_NO_AUTOSTART=1`) or a non-loopback `EXPRESS_SERVER_URL` is set. Run `start` explicitly or fix the env.
-- **Exit code 4 (browser required)?** Open `http://127.0.0.1:3081` in a browser, then retry — screenshots, image export, viewport, and mermaid conversion render in the frontend.
+- **Exit code 4 (browser required)?** Only `mermaid` and `screenshot --renderer browser` need an open tab. Open `http://127.0.0.1:3081` in a browser and retry, or drop `--renderer browser` — screenshots and image exports render headless.
 - **Elements not appearing?** Check `describe` — they may be off-screen. In MCP mode, use `set_viewport` with `scrollToContent: true`, or `scrollToElementIds` plus optional `viewportZoomFactor` to focus on a specific subgraph; in a browser, press the zoom-to-fit button.
 - **Arrow not connecting?** Verify element IDs with `get <id>`. Make sure `startElementId`/`endElementId` match existing element IDs.
 - **Canvas in a bad state?** `snapshot save` first, then `clear --yes` and rebuild. Or `snapshot restore` to go back.
