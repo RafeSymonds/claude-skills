@@ -506,6 +506,12 @@ def cmd_slides(story: Story, args):
     _, result = animate(write_board(story, storyboard(story, runs, names=True), 'slides.json'),
                         '--stills', str(images), '--no-video', '--sheet', str(story.work / 'slides-sheet.png'))
     stills = [Path(p) for p in result['stills']]
+    # A slide that lost a click leaves its old still behind; remove every
+    # PNG in the images directory this build did not write.
+    keep = {q.resolve() for q in stills}
+    for q in images.glob('*.png'):
+        if q.resolve() not in keep:
+            q.unlink()
 
     head = dict(conf.get('headmatter') or {})
     out = []
