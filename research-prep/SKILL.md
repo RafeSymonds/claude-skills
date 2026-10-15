@@ -1,6 +1,6 @@
 ---
 name: research-prep
-description: Prepare and run a high-stakes decision or research task using the three-step "interrogate → acceptance criteria → deep research" method. Use when the user faces a consequential choice or wants a thorough, trustworthy report and quality matters more than speed — buying something major, picking a vendor/tool/framework/architecture, a strategy or hiring call, a literature or market scan. This is the deliberate front-end to one-shot research and to /deep-research.
+description: Prepare and run a high-stakes research task using the three-step "interrogate → acceptance criteria → deep research" method. Use when the user wants a thorough, trustworthy report and quality matters more than speed, such as a literature or market scan. This is the deliberate front-end to one-shot research and to /deep-research. For a decision between options (a purchase, a vendor, tool, framework or architecture, a strategy or hiring call), use decide instead.
 ---
 
 # research-prep
