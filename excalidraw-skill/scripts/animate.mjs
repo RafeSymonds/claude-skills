@@ -422,6 +422,7 @@ function stem(word) {
   if (DATE_WORDS[word]) return DATE_WORDS[word];
   let w = word.replace(/'s$|'$/, '');
   if (w.length > 4 && /ies$/.test(w)) return w.slice(0, -3) + 'y';  // "stories" -> "story"
+  if (w.length === 4 && /[^s]s$/.test(w)) return w.slice(0, -1);   // "asks" -> "ask"
   if (w.length > 4) {
     const cut = w.replace(/(ing|ed|es|s)$/, '');
     // "dropped" -> "dropp" -> "drop"
