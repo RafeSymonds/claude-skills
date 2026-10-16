@@ -1,6 +1,6 @@
 ---
 name: excalidraw-skill
-description: Excalidraw canvas toolkit for creating, editing, and refining diagrams on a live canvas. Use when an agent needs to (1) draw or lay out diagrams, (2) iteratively refine them by describing the scene and screenshotting its own work, (3) export/import .excalidraw files or PNG/SVG images, (4) save/restore canvas snapshots, (5) convert Mermaid to Excalidraw, (6) perform element-level CRUD, alignment, distribution, grouping, duplication, and locking, (7) animate diagrams into MP4/GIF/WebM videos (excalidraw-animate), or (8) build a slide deck or a narrated video (Kokoro voice) from one story file of Excalidraw scenes (excalidraw-story), in a house style for slides and narration. Interfaces: MCP tools (preferred when available), the bundled CLI (npx -y mcp-excalidraw-server <command>), or a REST API, all driving the same canvas.
+description: Excalidraw canvas toolkit for creating, editing, and refining diagrams on a live canvas. Use when an agent needs to (1) draw or lay out diagrams, (2) iteratively refine them by describing the scene and screenshotting its own work, (3) export/import .excalidraw files or PNG/SVG images, (4) save/restore canvas snapshots, (5) convert Mermaid to Excalidraw, (6) perform element-level CRUD, alignment, distribution, grouping, duplication, and locking, (7) animate diagrams into MP4/GIF/WebM videos, or (8) build a slide deck or a narrated video from Excalidraw scenes; for (7) and (8) it hands off to the excalive skill and its excalidraw-animate and excalidraw-story wrappers. Interfaces: MCP tools (preferred when available), the bundled CLI (npx -y mcp-excalidraw-server <command>), or a REST API, all driving the same canvas.
 ---
 
 # Excalidraw Skill
@@ -262,88 +262,11 @@ Round-trips are safe: text-element block references follow the plugin's own id r
 2. Make changes, evaluate with `describe` / `screenshot`.
 3. `snapshot restore <name>` to roll back if needed. `snapshot list` shows what's saved.
 
-## Workflow: Animation (MP4 / GIF / WebM)
+## Animation, slide decks and narrated videos
 
-`excalidraw-animate` (on PATH, a wrapper for `excalive animate` from [excalive](https://github.com/RafeSymonds/excalive), which `bin/excalive-path` locates) renders video with the same headless renderer as `screenshot`. It needs no flags: MP4/WebM default to 1920x1080 at 30 fps and GIF to 960x540 at 20 fps. The first scene draws in from empty, transitions take 1.2 s, and each step holds for 1.2 s.
+These live in [excalive](https://github.com/RafeSymonds/excalive), which has its own skill. **Read excalive's skill before animating a diagram or building a deck or a video**: it covers build steps, the story file, the house style and the checks. Install it as the `excalive` plugin (`/plugin install excalive --marketplace RafeSymonds/excalive`), or read it from a checkout: `bin/excalive-path` prints `<excalive>/bin/excalive`, and the skill is `<excalive>/skills/excalive/SKILL.md`.
 
-| Goal | Command |
-|------|---------|
-| Draw the current canvas in, element by element | `excalidraw-animate` → `animation.mp4` |
-| Same for a file | `excalidraw-animate diagram.excalidraw` → `diagram.mp4` |
-| Step-by-step explainer on one canvas | Put each step in its own frame (`"type": "frame"`), laid out left to right, then `excalidraw-animate --frames`. The camera moves to each frame in turn and that frame's content draws in on arrival. Frame borders are not rendered. |
-| Show change over time (move, recolor, add, remove) | `snapshot save demo-1`, edit, `snapshot save demo-2`, ..., then `excalidraw-animate --snapshots demo-` |
-| A diagram's slide builds | `excalidraw-animate --steps diagram.excalidraw` reads the `steps.json` beside it (`{"diagram": [[ids in step 0], [ids in step 1], ...]}`) and makes one keyframe per step |
-| Narrated video | A storyboard with a voice clip and its words on each keyframe (see below) |
-| Full control | `excalidraw-animate storyboard.json` |
-
-How motion is decided, so you can draw for it:
-
-- Elements match across steps by `id`. An element with the same id moves, resizes, recolors and reshapes, and changed text fades out and back in. Keep ids stable for anything that should move rather than reappear.
-- New elements enter in creation (z) order: arrows grow along their path, rectangles, ellipses and diamonds draw their outline on and then fill, and text fades in. An arrow waits for the shapes it connects. Create elements in the order they should appear.
-- Removed elements fade out.
-
-Flags: `--out` (`.mp4`, `.webm`, `.gif`, or a directory for PNG frames), `--duration`, `--hold`, `--boil 8` (hand-drawn wobble), `--dark`, `--no-intro`, `--width`/`--height`, `--fps`, `--padding`, `--text-x left|center`, `--sheet sheet.png`, `--check`, `--strict`.
-
-Storyboard keyframe fields: `scene` (file, `snapshot:<name>`, `canvas`, or an inline element array), `step` (one build step of a scene file, from its `steps.json`), `ids` (only these elements), `add` (extra elements over the scene, such as a title), `clear` (a new scene: the old one fades out, the camera cuts, then this one draws in even where ids repeat), `audio`, `audioDelay`, `narration`, `textX`, `duration`, `hold`, `stagger`, `enterDelay`, `easing`, `enter` (`auto|draw|pop|fade|rise|type|none`), `styles` (`{"<id>": "type"}`, a bound label's id is `<containerId>::label`), `order`, and `camera` (`{"fit": ["id", ...], "padding": 40}` or `{x, y, width, height}`). The full reference is at the bottom of excalive's `scripts/animate.mjs`.
-
-Nunito (`fontFamily: 6`, Excalidraw's plain "Normal" font) renders as itself: the renderer alone would substitute Liberation Sans, so `excalidraw-animate` supplies the TTF in excalive's `assets/fonts/` (SIL OFL). Use it for words that should read as type rather than handwriting, such as slide titles, list items and tables.
-
-For video, text has to read in the widest shot at 1080p. Keep the scene close to 16:9 and use `fontSize` 28 or more for free text. Shape labels render at 20 on the canvas whatever the shape's `fontSize` (see Element Format). Keyframe files passed to `excalidraw-animate` are the exception, because the script carries a shape's `fontSize` into its label.
-
-Check the result before handing it over. `--sheet sheet.png` writes contact sheets of every keyframe's finished frame, 20 to a page (`sheet-1.png`, `sheet-2.png`, ... when there are more), so you can check every step without watching the video. Any ffmpeg tile command works on a `--out frames` directory too, but the sheet picks the right frames for you.
-
-### Narrated video
-
-Voice each beat as its own audio file (any TTS), then give every keyframe its clip and the words it says:
-
-```json
-{"output": "explainer.mp4", "textX": "center",
- "keyframes": [
-  {"scene": "title.excalidraw", "audio": "beats/00.wav", "narration": "Subagents. Lecture 14."},
-  {"scene": "split.excalidraw", "step": 0, "clear": true, "audio": "beats/01.wav", "narration": "..."},
-  {"scene": "split.excalidraw", "step": 1, "audio": "beats/02.wav", "narration": "..."},
-  {"scene": "end.excalidraw", "clear": true, "audio": "beats/03.wav", "hold": 3, "narration": "..."}]}
-```
-
-- The voice starts as the keyframe's drawing starts, and the keyframe holds until the voice ends plus `hold` (default 0.5 s), so the picture follows the voice and the two cannot drift. Many TTS engines put silence at the start of each clip; measure it before adding `audioDelay`.
-- Run `--check` first. It prints the length and every line of on-screen text the narration never says, without rendering. Viewers read along while they listen, so a label the voice does not say reads as the two disagreeing. Write each list item as the phrase the narration says, and start the beat with it. `--strict` makes any such line fatal.
-- Use `clear` at every scene change. Different scenes reuse ids like `title` or `frame`, and without it those elements morph into each other.
-- Open on a title card that is already on screen in the first frame (`"duration": 0` on the first keyframe), so the thumbnail and the first second say which video this is. End on a closing card that says what was watched, held for a few seconds, so the end reads as the end.
-- Long holds cost little disk: held frames are hard links. A 16-minute narrated video (80 beats) takes about three and a half minutes to draw and encode.
-
-### Pipeline: excalidraw-story
-
-The house style for decks and videos built this way (page, fonts, colors, slide kinds, writing rules, Kokoro voice) is excalive's `docs/style.md`, and the steps are its `docs/workflow.md` (`bin/excalive-path` prints where excalive is; the docs are in `../docs/` from there). Read the style before drawing a card or writing narration.
-
-For a narrated video or a slide deck, write one story file and let `excalidraw-story` (a wrapper for `excalive check|slides|video`) build the storyboard, voices and checks. No per-project build script.
-
-```markdown
----
-scenes: [cards, ../diagrams]     # searched in order for <scene>.excalidraw; steps from steps.json beside it
-video: out/explainer.mp4
-lexicon: [lexicon.json]          # pronunciations: {"Navier": {"ipa": "nævjˈA"}, "K2.5": "K two point five"}
-silent: {fork-diagram: [t1, t2]} # labels the words need not say
-slides: {file: deck/slides.md, images: deck/img, headmatter: {title: Subagents}}
----
-## title-card 0
-This is Lecture 14: Subagents.
-## split 0 | A task split into parts
-A task split into parts. The main conversation holds your request.
-## split 1
-Each part goes to a conversation of its own...
-```
-
-Each `## <scene> [<step>] [| <title>]` is a beat. A `|` title is drawn above the scene unless the scene has its own `title` element. A new scene clears the old one. Other front matter: `work` (cache dir), `voice`, `speed`, `audio_delay` (0.3), `gap` (0.5), `scene_gap` (1.0), `end_hold` (4.0), `text_x` (`auto` reads whole-number x on centered text as the middle), `title` ({size, color, gap}), `strict` (true), `title` also takes `font` (an Excalidraw `fontFamily`; 6 is Nunito for plain page text, default 5, hand-drawn). Titles (a card's `title` element and the title drawn above a scene) are always `silent`: the words never need to read them. `intro` (`cut`, the default, opens on the first scene already drawn so the first frame shows what is playing; `draw` draws it in from white).
-
-| Command | Does |
-|---------|------|
-| `excalidraw-story check story.md` | Every scene and step exists, speech lint (initialism hyphens, abbreviated dates, `1M`, bare URLs, `K2.5`-style versions), and every line of on-screen text said in its beat. Under a second, no render. Exit 1 on unspoken text. |
-| `excalidraw-story video story.md` | The same checks, then Kokoro voices each beat (cached by what it says, so one edit re-voices one beat), then one render with each keyframe held to its voice, plus contact sheets in `<work>/sheet-N.png`. |
-| `excalidraw-story slides story.md` | Each beat as a still in `slides.images`, and a Slidev deck in `slides.file`: one slide per scene, its beats as `v-switch` clicks, a hidden H1 for the title, the beat words as notes joined by "Click.". Unspoken text only warns, and beats may have no words. |
-
-The first run downloads Kokoro and its weights (about 330 MB) through uv. A beat's words are the narration or the notes, so the check that keeps a video's voice and picture in agreement does the same for a deck.
-
-Requires `ffmpeg` and mcp-excalidraw-server 2.1 or later (npx cache or global). The script imports the package's internal render modules (`dist/core/render`). If an upgrade breaks it, check those exports first.
+This skill's `bin/excalidraw-animate` runs `excalive animate` and `bin/excalidraw-story` runs `excalive check|slides|video`, so older instructions that name them still work.
 
 ## Workflow: Duplication
 

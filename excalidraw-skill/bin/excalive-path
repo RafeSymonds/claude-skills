@@ -1,7 +1,7 @@
 #!/bin/sh
 # Print the path of the excalive command: $EXCALIVE_HOME, then a clone named
 # excalive beside any directory above this skill (a workspace's subrepo),
-# then excalive on PATH, then ~/other/excalive.
+# then excalive on PATH, the excalive plugin's checkout, then ~/other/excalive.
 here="$(dirname "$(readlink -f "$0")")"
 [ -n "$EXCALIVE_HOME" ] && [ -x "$EXCALIVE_HOME/bin/excalive" ] && { echo "$EXCALIVE_HOME/bin/excalive"; exit 0; }
 d="$here"
@@ -10,6 +10,8 @@ while [ "$d" != "/" ]; do
   d="$(dirname "$d")"
 done
 command -v excalive 2>/dev/null && exit 0
-[ -x "$HOME/other/excalive/bin/excalive" ] && { echo "$HOME/other/excalive/bin/excalive"; exit 0; }
+for c in "$HOME/.claude/plugins/marketplaces/excalive" "$HOME/other/excalive"; do
+  [ -x "$c/bin/excalive" ] && { echo "$c/bin/excalive"; exit 0; }
+done
 echo "excalive not found: git clone https://github.com/RafeSymonds/excalive, then set EXCALIVE_HOME or put its bin/ on PATH" >&2
 exit 1
