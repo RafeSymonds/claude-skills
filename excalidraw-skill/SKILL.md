@@ -264,7 +264,7 @@ Round-trips are safe: text-element block references follow the plugin's own id r
 
 ## Workflow: Animation (MP4 / GIF / WebM)
 
-`excalidraw-animate` (on PATH, a wrapper for `scripts/animate.mjs`) renders video with the same headless renderer as `screenshot`. It needs no flags: MP4/WebM default to 1920x1080 at 30 fps and GIF to 960x540 at 20 fps. The first scene draws in from empty, transitions take 1.2 s, and each step holds for 1.2 s.
+`excalidraw-animate` (on PATH, a wrapper for `excalive animate` from [excalive](https://github.com/RafeSymonds/excalive), which `bin/excalive-path` locates) renders video with the same headless renderer as `screenshot`. It needs no flags: MP4/WebM default to 1920x1080 at 30 fps and GIF to 960x540 at 20 fps. The first scene draws in from empty, transitions take 1.2 s, and each step holds for 1.2 s.
 
 | Goal | Command |
 |------|---------|
@@ -284,9 +284,9 @@ How motion is decided, so you can draw for it:
 
 Flags: `--out` (`.mp4`, `.webm`, `.gif`, or a directory for PNG frames), `--duration`, `--hold`, `--boil 8` (hand-drawn wobble), `--dark`, `--no-intro`, `--width`/`--height`, `--fps`, `--padding`, `--text-x left|center`, `--sheet sheet.png`, `--check`, `--strict`.
 
-Storyboard keyframe fields: `scene` (file, `snapshot:<name>`, `canvas`, or an inline element array), `step` (one build step of a scene file, from its `steps.json`), `ids` (only these elements), `add` (extra elements over the scene, such as a title), `clear` (a new scene: the old one fades out, the camera cuts, then this one draws in even where ids repeat), `audio`, `audioDelay`, `narration`, `textX`, `duration`, `hold`, `stagger`, `enterDelay`, `easing`, `enter` (`auto|draw|pop|fade|rise|type|none`), `styles` (`{"<id>": "type"}`, a bound label's id is `<containerId>::label`), `order`, and `camera` (`{"fit": ["id", ...], "padding": 40}` or `{x, y, width, height}`). The full reference is at the bottom of the script.
+Storyboard keyframe fields: `scene` (file, `snapshot:<name>`, `canvas`, or an inline element array), `step` (one build step of a scene file, from its `steps.json`), `ids` (only these elements), `add` (extra elements over the scene, such as a title), `clear` (a new scene: the old one fades out, the camera cuts, then this one draws in even where ids repeat), `audio`, `audioDelay`, `narration`, `textX`, `duration`, `hold`, `stagger`, `enterDelay`, `easing`, `enter` (`auto|draw|pop|fade|rise|type|none`), `styles` (`{"<id>": "type"}`, a bound label's id is `<containerId>::label`), `order`, and `camera` (`{"fit": ["id", ...], "padding": 40}` or `{x, y, width, height}`). The full reference is at the bottom of excalive's `scripts/animate.mjs`.
 
-Nunito (`fontFamily: 6`, Excalidraw's plain "Normal" font) renders as itself: the renderer alone would substitute Liberation Sans, so `excalidraw-animate` supplies the TTF in `assets/fonts/` (SIL OFL). Use it for words that should read as type rather than handwriting, such as slide titles, list items and tables.
+Nunito (`fontFamily: 6`, Excalidraw's plain "Normal" font) renders as itself: the renderer alone would substitute Liberation Sans, so `excalidraw-animate` supplies the TTF in excalive's `assets/fonts/` (SIL OFL). Use it for words that should read as type rather than handwriting, such as slide titles, list items and tables.
 
 For video, text has to read in the widest shot at 1080p. Keep the scene close to 16:9 and use `fontSize` 28 or more for free text. Shape labels render at 20 on the canvas whatever the shape's `fontSize` (see Element Format). Keyframe files passed to `excalidraw-animate` are the exception, because the script carries a shape's `fontSize` into its label.
 
@@ -309,13 +309,13 @@ Voice each beat as its own audio file (any TTS), then give every keyframe its cl
 - Run `--check` first. It prints the length and every line of on-screen text the narration never says, without rendering. Viewers read along while they listen, so a label the voice does not say reads as the two disagreeing. Write each list item as the phrase the narration says, and start the beat with it. `--strict` makes any such line fatal.
 - Use `clear` at every scene change. Different scenes reuse ids like `title` or `frame`, and without it those elements morph into each other.
 - Open on a title card that is already on screen in the first frame (`"duration": 0` on the first keyframe), so the thumbnail and the first second say which video this is. End on a closing card that says what was watched, held for a few seconds, so the end reads as the end.
-- Long holds cost little disk: held frames are hard links. A 16-minute narrated video (80 beats) took 9 minutes to draw and encode.
+- Long holds cost little disk: held frames are hard links. A 16-minute narrated video (80 beats) takes about three and a half minutes to draw and encode.
 
 ### Pipeline: excalidraw-story
 
-The house style for decks and videos built this way (page, fonts, colors, slide kinds, writing rules, Kokoro voice) is `references/slides-and-video.md`. Read it before drawing a card or writing narration.
+The house style for decks and videos built this way (page, fonts, colors, slide kinds, writing rules, Kokoro voice) is excalive's `docs/style.md`, and the steps are its `docs/workflow.md` (`bin/excalive-path` prints where excalive is; the docs are in `../docs/` from there). Read the style before drawing a card or writing narration.
 
-For a narrated video or a slide deck, write one story file and let `excalidraw-story` (wrapper for `scripts/story.py`, a uv script) build the storyboard, voices and checks. No per-project build script.
+For a narrated video or a slide deck, write one story file and let `excalidraw-story` (a wrapper for `excalive check|slides|video`) build the storyboard, voices and checks. No per-project build script.
 
 ```markdown
 ---
