@@ -1,6 +1,6 @@
 ---
 name: excalidraw-skill
-description: Excalidraw canvas toolkit for creating, editing, and refining diagrams on a live canvas. Use when an agent needs to (1) draw or lay out diagrams, (2) iteratively refine them by describing the scene and screenshotting its own work, (3) export/import .excalidraw files or PNG/SVG images, (4) save/restore canvas snapshots, (5) convert Mermaid to Excalidraw, (6) perform element-level CRUD, alignment, distribution, grouping, duplication, and locking, (7) animate diagrams into MP4/GIF/WebM videos, or (8) build a slide deck or a narrated video from Excalidraw scenes; for (7) and (8) it hands off to the excalive skill and its excalidraw-animate and excalidraw-story wrappers. Interfaces: MCP tools (preferred when available), the bundled CLI (npx -y mcp-excalidraw-server <command>), or a REST API, all driving the same canvas.
+description: Excalidraw canvas toolkit for creating, editing, and refining diagrams on a live canvas. Use when an agent needs to (1) draw or lay out diagrams, (2) iteratively refine them by describing the scene and screenshotting its own work, (3) export/import .excalidraw files or PNG/SVG images, (4) save/restore canvas snapshots, (5) convert Mermaid to Excalidraw, or (6) perform element-level CRUD, alignment, distribution, grouping, duplication, and locking. Animation, slide decks and narrated videos are the excalive skill's. Interfaces: MCP tools (preferred when available), the bundled CLI (npx -y mcp-excalidraw-server <command>), or a REST API, all driving the same canvas.
 ---
 
 # Excalidraw Skill
@@ -21,7 +21,7 @@ The canvas URL comes from `EXPRESS_SERVER_URL` (set to `http://127.0.0.1:3081` i
 
 On this machine the canvas server on 3081 is the always-on Docker container `mcp-excalidraw-canvas` (image `ghcr.io/yctimlin/mcp_excalidraw-canvas`, host 3081 mapped to container 3000, `--restart unless-stopped`). The image must be at least as new as the npm package, or headless rendering is missing and screenshots silently fall back to the browser renderer. Upgrading recreates the container and wipes its in-memory scene and snapshots, so back them up first. Port 3080 is a separate standalone Excalidraw app (Docker container `excalidraw`, image `excalidraw/excalidraw`) for manual drawing. It is not the agent canvas and the tools above cannot reach it. Keep Excalidraw off 3000 and 8080, which the user reserves for other work.
 
-**Free text alignment:** `x` is always the left edge of a text element's box, even with `textAlign: "center"`. The open browser tab can render center-aligned free text as if `x` were its center, so the browser view and the headless screenshot (and the exported file) disagree. To center free text over a point, set `x = centerX - width/2`. The headless renderer also measures text narrower than a browser does (a 27 px label: 195 px becomes 166 px) and keeps `x`, so in `screenshot` and `render` centered free text sits a little left of where the browser puts it. `excalidraw-animate` corrects both: it keeps each centered label on its middle, and `textX: "center"` reads `x` as the middle for scenes written the browser's way.
+**Free text alignment:** `x` is always the left edge of a text element's box, even with `textAlign: "center"`. The open browser tab can render center-aligned free text as if `x` were its center, so the browser view and the headless screenshot (and the exported file) disagree. To center free text over a point, set `x = centerX - width/2`. The headless renderer also measures text narrower than a browser does (a 27 px label: 195 px becomes 166 px) and keeps `x`, so in `screenshot` and `render` centered free text sits a little left of where the browser puts it.
 
 ### CLI Quick Reference
 
@@ -53,7 +53,7 @@ The CLI and MCP tools accept the same agent-friendly format and normalize it aut
 - **fontFamily**: pass a string name (`"helvetica"`, `"cascadia"`, `"excalifont"`, ...) or string number `"1"`–`"8"`.
 - **points**: both `[[x,y], ...]` tuples and `[{"x":..,"y":..}]` objects are accepted.
 - **Label size**: shape labels always render at fontSize 20. The shape's own `fontSize` is not applied to its label, and the schema strips `label.fontSize` (upstream bug). For larger labels, put a free-standing text element over the shape instead of `text`.
-- **Frames**: `"type": "frame"` works, but `name` and children's `frameId` are stripped, so elements drawn inside a frame are not its children on the canvas. `excalidraw-animate --frames` assigns each element to the frame that contains its center.
+- **Frames**: `"type": "frame"` works, but `name` and children's `frameId` are stripped, so elements drawn inside a frame are not its children on the canvas.
 - **Patch updates**: in `apply`, update entries can use either direct fields (`{"id":"a","x":120}`) or a `set` object (`{"id":"a","set":{"x":120}}`). Do not mix both forms in one update entry.
 
 **Raw REST is stricter**: labels must be `"label": {"text": "..."}`, bindings must be `"start": {"id": "..."}` / `"end": {"id": "..."}`. Only worry about this when POSTing to the API directly.
@@ -261,12 +261,6 @@ Round-trips are safe: text-element block references follow the plugin's own id r
 1. `snapshot save <name>` before risky changes.
 2. Make changes, evaluate with `describe` / `screenshot`.
 3. `snapshot restore <name>` to roll back if needed. `snapshot list` shows what's saved.
-
-## Animation, slide decks and narrated videos
-
-These live in [excalive](https://github.com/RafeSymonds/excalive), which has its own skill. **Read excalive's skill before animating a diagram or building a deck or a video**: it covers build steps, the story file, the house style and the checks. Install it as the `excalive` plugin (`/plugin install excalive --marketplace RafeSymonds/excalive`), or read it from a checkout: `bin/excalive-path` prints `<excalive>/bin/excalive`, and the skill is `<excalive>/skills/excalive/SKILL.md`.
-
-This skill's `bin/excalidraw-animate` runs `excalive animate` and `bin/excalidraw-story` runs `excalive check|slides|video`, so older instructions that name them still work.
 
 ## Workflow: Duplication
 

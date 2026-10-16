@@ -1,5 +1,0 @@
-#!/bin/sh
-# Animate Excalidraw scenes to MP4/WebM/GIF: `excalive animate`, found by
-# bin/excalive-path. See excalive's scripts/animate.mjs for every flag.
-x="$("$(dirname "$(readlink -f "$0")")/excalive-path")" || exit 1
-exec "$x" animate "$@"

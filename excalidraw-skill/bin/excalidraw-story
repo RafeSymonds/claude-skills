@@ -1,5 +1,0 @@
-#!/bin/sh
-# One story file in, a narrated video or a slide deck out. This is excalive
-# (github.com/RafeSymonds/excalive), found by bin/excalive-path.
-x="$("$(dirname "$(readlink -f "$0")")/excalive-path")" || exit 1
-exec "$x" "$@"
