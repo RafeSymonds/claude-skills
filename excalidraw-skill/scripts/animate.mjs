@@ -545,7 +545,18 @@ function routeBoundArrows(elements) {
 // its stored box, which is what x means to Excalidraw (`textX: "left"`), or x
 // itself (`textX: "center"`), which is how the canvas's browser tab draws
 // center-aligned text an agent wrote.
+// The renderer collapses runs of spaces inside text, which wrecks the
+// alignment of code. In code fonts (Cascadia, Comic Shanns) every run of two
+// or more spaces, and a leading space, becomes non-breaking.
+const CODE_FONTS = new Set([3, 8]);
+function keepCodeSpaces(el) {
+  if (el?.type !== 'text' || !CODE_FONTS.has(Number(el.fontFamily)) || typeof el.text !== 'string') return el;
+  const fix = t => t.split('\n').map(line => line.replace(/^ +| {2,}/g, run => '\u00a0'.repeat(run.length))).join('\n');
+  return { ...el, text: fix(el.text), ...(typeof el.originalText === 'string' ? { originalText: fix(el.originalText) } : {}) };
+}
+
 async function normalizeKeyframe(elements, textX = 'left') {
+  elements = elements.map(keepCodeSpaces);
   const anchors = new Map();
   for (const el of elements) {
     if (!el || el.isDeleted || el.type !== 'text' || el.containerId) continue;
