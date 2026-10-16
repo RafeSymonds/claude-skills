@@ -85,8 +85,9 @@ A teaching slide is a title plus one of these.
    fact, no teaser and reveal.
 5. **A table**: Nunito, header row in blue, row labels muted, one straight
    rule (`#ced4da`, `roughness: 0`) between rows, spanning x 120 to 1480
-   with even gaps. The canvas measures text wider than the renderer, so
-   space columns by the canvas's widths.
+   with even gaps of at most 160. The canvas measures every font at a
+   flat 0.6 em (Nunito comes out about 27% too wide), so space columns by
+   real widths: the rendered still, or the font's own metrics.
 
 No paragraphs in boxes: a definition or a summary is a list of its parts.
 
